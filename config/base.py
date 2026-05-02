@@ -40,7 +40,35 @@ def _origin_from_url(url):
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", "localhost,127.0.0.1")
+def _host_from_url_or_host(value):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if "://" in value:
+        parsed = urlsplit(value)
+        return parsed.netloc.split("@")[-1]
+    return value.split("/")[0]
+
+
+def _vercel_hosts():
+    if not os.getenv("VERCEL"):
+        return []
+
+    hosts = ["tcb-system.vercel.app"]
+    for name in (
+        "VERCEL_URL",
+        "VERCEL_BRANCH_URL",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+    ):
+        host = _host_from_url_or_host(os.getenv(name))
+        if host:
+            hosts.append(host)
+    return hosts
+
+
+ALLOWED_HOSTS = _unique(
+    _env_list("ALLOWED_HOSTS", "localhost,127.0.0.1") + _vercel_hosts()
+)
 
 # Frontend integration
 FRONTEND_DEFAULT_URL = os.getenv(
